@@ -1,7 +1,3 @@
-/*
-Compilacion del programa
-gcc message_rec.c -o recv
-*/
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
@@ -11,38 +7,48 @@ gcc message_rec.c -o recv
 
 #define MSGSZ 128
 
-/**
-Esta estructura define los elementos que tiene un mensaje
-*/
-typedef struct msgbuf
-{
+typedef struct msgbuf {
     long mtype;
-    char mtext[MSGSZ]; // Un mensaje de longitud MSGSZ
+    char mtext[MSGSZ];
 } message_buf;
 
-int main()
-{
+int main() {
     int msqid;
-    key_t key;
-    message_buf rbuf, sbuf;
-    size_t buf_length;
+    key_t key = 1234;
+    message_buf sbuf, rbuf;
 
-    key = 1234;
-    // Este metodo trata de acceder a una cola de mensaje con llave 1234
-    // y con permisos de lectura y escritura para todo el mundo
-    if ((msqid = msgget(key, 0666)) < 0)
-    {
-        perror("msgget");
+    // Obtener la cola de mensajes creada por el Proceso A
+    if ((msqid = msgget(key, IPC_CREAT | 0666)) < 0) {
+        perror("msgget (recv)");
         exit(1);
     }
-    // Esta es una llamada BLOQUEANTE sobre la cola de mensajes con identificador
-    // msqid. El mensaje se almacenara en la variable rbuf y se leera un total de
-    // MSGSZ bytes. El mensaje sera de tipo 1.
-    if (msgrcv(msqid, &rbuf, MSGSZ, 1, 0) < 0)
-    {
-        perror("msgrcv");
+
+    // --- MENSAJE 1: Recibir de A (mtype = 1) ---
+    printf("[Process 2] Waiting Message 1 from process 1...\n");
+    if (msgrcv(msqid, &rbuf, MSGSZ, 1, 0) < 0) { // Bloquea hasta recibir tipo 1
+        perror("msgrcv 1");
         exit(1);
     }
-    printf("%s\n", rbuf.mtext);
-    exit(0);
+    printf("[Process 2] Received from process 1: \"%s\"\n", rbuf.mtext);
+
+    // --- MENSAJE 2: Responder a A (mtype = 2) ---
+    sbuf.mtype = 2;
+    snprintf(sbuf.mtext, MSGSZ, "Message 2: Load and clear.");
+    printf("[Process 2] Sending Message 2 (rpt)...\n");
+    if (msgsnd(msqid, &sbuf, strlen(sbuf.mtext) + 1, 0) < 0) {
+        perror("msgsnd 2");
+        exit(1);
+    }
+
+    // --- MENSAJE 3: Recibir de A (mtype = 1) ---
+    printf("[Process 2] Waiting Message 3 from process 1...\n");
+    if (msgrcv(msqid, &rbuf, MSGSZ, 1, 0) < 0) { // Bloquea hasta recibir tipo 1
+        perror("msgrcv 3");
+        exit(1);
+    }
+    printf("[Process 2] Received from process 1: \"%s\"\n", rbuf.mtext);
+
+    printf("[Process 2] Process 2 completed.\n");
+
+    return 0;
 }
