@@ -21,7 +21,7 @@ typedef struct msgbuf
     char mtext[MSGSZ];
 } message_buf;
 
-main()
+int main()
 {
     int msqid;
     // En este programa el que envia el mensaje es el que crea
